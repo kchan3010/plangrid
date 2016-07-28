@@ -43,6 +43,10 @@ class SpreadSheetParser implements BaseParser, BasicMathOperations
             $row_index = 1;
             while (($row_data = fgetcsv($handle)) !== false) {
                 //create mapping
+
+                /*TODO::ADD A 'result' key to the mapping so that if we processed
+                the cell already we won't need to reprocess again if another
+                cell refers to it*/
                 foreach ($row_data as $key => $value) {
                     $header                              = $header_columns[$key];
                     $map_key                             = $header . $row_index;

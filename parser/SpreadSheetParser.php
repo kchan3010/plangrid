@@ -1,5 +1,6 @@
 <?php
 include_once('BaseParser.php');
+include_once('BasicMathOperations.php');
 
 /**
  * SpreadSheetParser.php
@@ -14,7 +15,7 @@ include_once('BaseParser.php');
  * Class SpreadSheetParser
  */
 
-class SpreadSheetParser implements BaseParser
+class SpreadSheetParser implements BaseParser, BasicMathOperations
 {
     protected $input_path = '';
     protected $output_path = '';
@@ -35,19 +36,22 @@ class SpreadSheetParser implements BaseParser
             $output_handle  = fopen($this->output_path, "w");
 
             //TODO:: OPTIMIZE METHOD TO GENERATE NECESSARY HEADERS
+
+            //create a mapping so that we can support {Column}{Row} notation
             $header_columns = $this->setUpColumnHeader();
 
             $row_index = 1;
             while (($row_data = fgetcsv($handle)) !== false) {
                 //create mapping
                 foreach ($row_data as $key => $value) {
-                    $header                        = $header_columns[$key];
-                    $map_key                       = $header . $row_index;
+                    $header                              = $header_columns[$key];
+                    $map_key                             = $header . $row_index;
                     $this->mapping[$row_index][$map_key] = $value;
                 }
                 $row_index++;
             }
 
+            //loop through row and format and evaluate cell tokens
             foreach ($this->mapping as $k => $map_row) {
                 $output = [];
                 foreach ($map_row as $map_val) {
@@ -60,11 +64,15 @@ class SpreadSheetParser implements BaseParser
                     }
                     $output[] = $stack[0];
                 }
+
+                //TODO:: could refactor to create CSV one time
                 fputcsv($output_handle, $output);
             }
 
             fclose($handle);
             fclose($output_handle);
+        } else {
+            throw new Exception;
         }
 
 
@@ -102,17 +110,20 @@ class SpreadSheetParser implements BaseParser
 
                 }
             } else {
+                //Are we trying to access a filed by {Column}{Row} notation?
+
                 //check cell token if there are any numbers
                 //this will tell us the row to check in the mapping
                 $pattern = '/(\d+)/';
                 preg_match($pattern, $part, $matches);
 
-                //check the row
-
+                //check the row in the mapping
                 if (!empty($matches)) {
                     $row = $matches[0];
                     if (isset($this->mapping[$row]) && isset($this->mapping[$row][$part])) {
                         $cell = $this->formatCellData($this->mapping[$row][$part]);
+
+                        //recurse through the cell tokens
                         $this->evaluateCell($cell, $stack);
                     } else {
                         $stack = ['#ERR'];
@@ -131,6 +142,7 @@ class SpreadSheetParser implements BaseParser
 
     public function setUpColumnHeader()
     {
+        //TODO: REFACTOR TO SUPPORT 26 cubed
         $letters  = range('A', 'Z');
         $row_data = range(1, 676); //26 squared
 
@@ -181,7 +193,7 @@ class SpreadSheetParser implements BaseParser
      *
      * @return mixed
      */
-    private function sumIt($first_operand, $second_operand)
+    public function sumIt($first_operand, $second_operand)
     {
         return $first_operand + $second_operand;
     }
@@ -192,7 +204,7 @@ class SpreadSheetParser implements BaseParser
      *
      * @return mixed
      */
-    private function subtractIt($first_operand, $second_operand)
+    public function subtractIt($first_operand, $second_operand)
     {
         return $first_operand - $second_operand;
     }
@@ -203,7 +215,7 @@ class SpreadSheetParser implements BaseParser
      *
      * @return mixed
      */
-    private function multiplyIt($first_operand, $second_operand)
+    public function multiplyIt($first_operand, $second_operand)
     {
         return $first_operand * $second_operand;
     }
@@ -214,7 +226,7 @@ class SpreadSheetParser implements BaseParser
      *
      * @return float
      */
-    private function divideIt($first_operand, $second_operand)
+    public function divideIt($first_operand, $second_operand)
     {
         return $first_operand / $second_operand;
     }
@@ -230,7 +242,7 @@ class SpreadSheetParser implements BaseParser
         $pattern = '/(\s+)/';
 
         //remove all extra spaces
-        $map_val = preg_replace($pattern, ' ', $data);
+        $map_val = preg_replace($pattern, ' ', trim($data));
 
         return explode(' ', $map_val);
 

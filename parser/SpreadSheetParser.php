@@ -99,6 +99,7 @@ class SpreadSheetParser implements BaseParser, BasicMathOperations
                             $result = $this->subtractIt($first_operand,$second_operand);
                             break;
                         case "*":
+                        case "x":
                             $result = $this->multiplyIt($first_operand,$second_operand);
                             break;
                         case "/":
